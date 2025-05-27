@@ -2,7 +2,7 @@
 
 A powerful frame-by-frame video analysis tool perfect for sports coaching, technique improvement, and detailed video study. Originally designed for table tennis game analysis but works great for any sport or educational content.
 
-![YouTube Video Analyzer in Action](screenshot.png)
+![YouTube Video Analyzer in Action](screenshot20250526.png)
 *Real example: Analyzing table tennis technique with detailed marks for coaching review*
 
 ## 🏓 Perfect for Table Tennis Game Analysis
@@ -165,7 +165,16 @@ This is a single HTML file that can be hosted anywhere:
 
 ## 📄 License
 
-Open source - feel free to modify and share!
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+**What this means:**
+- ✅ **Free to use** - Personal and commercial use allowed
+- ✅ **Modify freely** - Adapt for your sport or needs  
+- ✅ **Share and distribute** - Help others improve their game
+- ✅ **No warranty** - Use at your own risk
+- 📝 **Attribution required** - Keep the license notice when sharing
+
+Perfect for coaches, sports organizations, and developers who want to build upon this tool!
 
 ---
 
