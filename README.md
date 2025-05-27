@@ -15,7 +15,7 @@ Transform your game improvement process with detailed video analysis and remote 
 - **🔄 Loop Mode**: Repeatedly watch critical points to understand technique
 - **⚡ Speed Controls**: 0.25x for detailed analysis, 1.5x for quick review
 - **🔗 Share URLs**: Collaborate with coaches remotely via compressed share links
-- **⏰ Fine Adjustments**: ±2 second timestamp adjustments for perfect timing
+- **⏰ Fine Adjustments**: ±1 second timestamp adjustments for perfect timing
 - **💾 Auto-Save**: Marks are automatically saved per video
 - **📱 Mobile Friendly**: Works on all devices with touch-friendly controls
 
@@ -65,9 +65,29 @@ Transform your game improvement process with detailed video analysis and remote 
 - **Speed**: 0.25x, 0.5x, 1.0x, 1.5x playback speeds
 - **Loop**: Toggle looping between current and next mark
 
+### ⌨️ Keyboard Shortcuts
+Power users can control everything with keyboard shortcuts:
+
+**Video Control:**
+- `Space` - Play/Pause video
+- `M` - Mark timestamp at current position
+- `L` - Toggle loop mode on/off
+
+**Navigation:**
+- `←` (Left Arrow) - Jump to previous mark
+- `→` (Right Arrow) - Jump to next mark
+
+**Speed Control:**
+- `1` - Set speed to 0.25x (slow motion analysis)
+- `2` - Set speed to 0.5x
+- `3` - Set speed to 1.0x (normal speed)
+- `4` - Set speed to 1.5x (fast review)
+
+*💡 Keyboard shortcuts work when not typing in input fields*
+
 ### Mark Management
 - **Click timestamp**: Jump directly to that moment
-- **±2s buttons**: Fine-tune mark timing
+- **±1s buttons**: Fine-tune mark timing (automatically jumps to new position)
 - **✏️ Rename**: Add detailed coaching notes
 - **❌ Delete**: Remove unwanted marks
 
