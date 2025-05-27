@@ -504,8 +504,8 @@
       return `<span class="mark-item ${isCurrentMark ? 'current-mark' : ''}">
                 <span class="mark-time" onclick="jumpToMark(${originalIndex})">${pointer}${mark.name} (${timestamp}s)</span>
                 <span class="mark-controls">
-                  <button class="tiny-button" onclick="adjustMarkTime(${originalIndex}, -0.5)" title="Subtract 0.5 seconds">-0.5s</button>
-                  <button class="tiny-button" onclick="adjustMarkTime(${originalIndex}, 0.5)" title="Add 0.5 seconds">+0.5s</button>
+                  <button class="tiny-button" onclick="adjustMarkTime(${originalIndex}, -2)" title="Subtract 2 seconds">-2s</button>
+                  <button class="tiny-button" onclick="adjustMarkTime(${originalIndex}, 2)" title="Add 2 seconds">+2s</button>
                   <button class="tiny-button" onclick="renameMark(${originalIndex})" title="Rename mark">✏️</button>
                   <span class="delete-mark" onclick="deleteMark(${originalIndex})">❌</span>
                 </span>
