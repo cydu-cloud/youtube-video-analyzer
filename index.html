@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>YouTube Video Analyzer - Frame by Frame Study Tool</title>
+  <style>
+    body { 
+      font-family: sans-serif; 
+      padding: 10px; 
+      margin: 0;
+      background-color: #f5f5f5;
+    }
+    
+    /* YouTube player styling */
+    #youtubePlayer {
+      width: 100%;
+      height: 60vh;
+      max-height: 400px;
+      margin: 10px 0;
+      background-color: #000;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    /* YouTube section styling */
+    #youtubeSection input {
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    
+    /* Mobile-friendly buttons */
+    button, input { 
+      margin: 8px 4px; 
+      padding: 12px 16px; 
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background-color: #fff;
+      min-height: 44px; /* iOS recommended touch target */
+    }
+    
+    /* Control buttons container */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin: 15px 0;
+    }
+    
+    .controls button {
+      flex: 1;
+      min-width: 60px;
+      max-width: 100px;
+    }
+    
+    #marks { 
+      margin-top: 15px; 
+      font-size: 16px;
+      background-color: #fff;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    
+    .mark-item { 
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 8px 0;
+      padding: 12px;
+      background: #f8f8f8;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    
+    .current-mark {
+      background-color: #e3f2fd;
+      border-color: #2196f3;
+    }
+    
+    .mark-controls {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    
+    .tiny-button {
+      padding: 8px 12px;
+      margin: 0;
+      font-size: 14px;
+      min-height: 36px;
+      min-width: 60px;
+    }
+    
+    .mark-time {
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 500;
+      flex: 1;
+    }
+    
+    .mark-time:hover {
+      text-decoration: underline;
+      color: #1976d2;
+    }
+    
+    .delete-mark {
+      cursor: pointer;
+      margin-left: 8px;
+      font-size: 18px;
+      padding: 8px 10px;
+      background-color: #ffebee;
+      border-radius: 4px;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .delete-mark:hover {
+      background-color: #ffcdd2;
+      color: #d32f2f;
+    }
+    
+    /* Header styling */
+    h2 {
+      margin: 10px 0;
+      text-align: center;
+      color: #333;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 480px) {
+      body { padding: 5px; }
+      
+      .controls button {
+        min-width: 50px;
+        padding: 10px 8px;
+        font-size: 14px;
+      }
+      
+      .mark-item {
+        padding: 10px;
+      }
+      
+      .tiny-button {
+        padding: 6px 8px;
+        font-size: 13px;
+        min-width: 50px;
+      }
+    }
+    
+    /* Sharing panel styling */
+    .sharing-panel {
+      background-color: #fff;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .share-options {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    
+    .share-options button {
+      padding: 8px 16px;
+      font-size: 14px;
+      min-height: 36px;
+    }
+    
+    #shareResult {
+      margin-top: 10px;
+    }
+    
+    #shareResult input {
+      font-family: monospace;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>🎯 YouTube Video Analyzer</h2>
+
+<div class="sharing-panel">
+  <div class="share-options">
+    <button id="shareUrlBtn" onclick="generateShareUrl()">🔗 Share URL</button>
+  </div>
+  <div id="shareResult" style="display: none;"></div>
+</div>
+
+<div id="youtubeSection">
+  <input type="text" id="youtubeUrl" placeholder="Enter YouTube URL and press Enter (e.g., https://www.youtube.com/watch?v=VIDEO_ID)" style="width: 100%; margin-bottom: 10px;" onkeypress="handleUrlKeyPress(event)">
+</div>
+
+<div id="videoContainer">
+  <div id="youtubePlayer"></div>
+</div>
+
+<div class="controls">
+  <button onclick="markTimestamp()">Mark</button>
+  <button onclick="prevMark()">Prev</button>
+  <button onclick="nextMark()">Next</button>
+  <button onclick="setSpeed(0.25)">0.25x</button>
+  <button onclick="setSpeed(0.5)">0.5x</button>
+  <button onclick="setSpeed(1.0)">1.0x</button>
+  <button onclick="setSpeed(1.5)">1.5x</button>
+  <button id="loopButton" onclick="toggleLoop()">🔁 Loop Off</button>
+</div>
+
+<div id="marks"><strong>Marks:</strong> <span id="markList">(none)</span></div>
+
+<script>
+  // YouTube-only video player
+  let marks = [];
+  let currentIndex = -1;
+  let currentSpeed = 1.0;
+  const loopButton = document.getElementById('loopButton');
+  let currentVideoId = null;
+  let isLooping = false;
+  let loopInterval = null;
+  let youtubePlayer = null;
+  let youtubeReady = false;
+
+  // URL sharing functions
+  function generateShareUrl() {
+    if (marks.length === 0) {
+      alert('No marks to share');
+      return;
+    }
+
+    const youtubeUrl = document.getElementById('youtubeUrl').value;
+    const videoId = extractYouTubeVideoId(youtubeUrl);
+    
+    if (!videoId) {
+      alert('Invalid YouTube URL');
+      return;
+    }
+    
+    // Create compressed data
+    const compressedData = compressMarks(marks);
+    
+    // Generate short URL
+    const shortUrl = `${window.location.origin}${window.location.pathname}?v=${videoId}&m=${compressedData}`;
+    
+    const resultDiv = document.getElementById('shareResult');
+    resultDiv.innerHTML = `
+      <div style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 4px;">
+        <div>
+          <strong>🔗 Share URL:</strong><br>
+          <input type="text" value="${shortUrl}" style="width: 100%; margin: 5px 0;" readonly onclick="this.select()">
+          <button onclick="copyToClipboard('${shortUrl}')">📋 Copy URL</button>
+        </div>
+        <div style="margin-top: 8px; font-size: 12px; color: #666;">
+          💡 Contains ${marks.length} marks in ${shortUrl.length} characters
+        </div>
+      </div>
+    `;
+    resultDiv.style.display = 'block';
+    
+    debug(`Generated share URL with ${marks.length} marks: ${shortUrl.length} chars`);
+  }
+
+  // Compress marks data for shorter URLs
+  function compressMarks(marks) {
+    // Convert marks to compact format: [time1,name1,time2,name2,...]
+    const compact = [];
+    marks.forEach(mark => {
+      compact.push(Math.round(mark.time * 10) / 10); // Round to 1 decimal
+      compact.push(mark.name);
+    });
+    
+    // Convert to base64 for URL safety
+    const jsonStr = JSON.stringify(compact);
+    const base64 = btoa(unescape(encodeURIComponent(jsonStr)));
+    
+    // Further compress by removing padding and using URL-safe characters
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+
+  // Decompress marks data from short URL
+  function decompressMarks(compressedData) {
+    try {
+      // Restore base64 padding and characters
+      let base64 = compressedData.replace(/-/g, '+').replace(/_/g, '/');
+      while (base64.length % 4) {
+        base64 += '=';
+      }
+      
+      // Decode from base64
+      const jsonStr = decodeURIComponent(escape(atob(base64)));
+      const compact = JSON.parse(jsonStr);
+      
+      // Convert back to marks format
+      const marks = [];
+      for (let i = 0; i < compact.length; i += 2) {
+        marks.push({
+          time: compact[i],
+          name: compact[i + 1]
+        });
+      }
+      
+      return marks;
+    } catch (error) {
+      debug('Error decompressing marks: ' + error.message);
+      return [];
+    }
+  }
+
+  function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('URL copied to clipboard!');
+    }).catch(() => {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('URL copied to clipboard!');
+    });
+  }
+
+  // URL loading for shared links
+  function loadFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Check for short URL format
+    const videoId = urlParams.get('v');
+    const compressedMarks = urlParams.get('m');
+    
+    if (videoId && compressedMarks) {
+      // Short URL format
+      const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      const decompressedMarks = decompressMarks(compressedMarks);
+      
+      if (decompressedMarks.length > 0) {
+        document.getElementById('youtubeUrl').value = youtubeUrl;
+        
+        // Set marks and video ID before loading
+        currentVideoId = `youtube_${videoId}`;
+        marks = decompressedMarks;
+        updateMarkList();
+        
+        setTimeout(() => {
+          loadYouTubeVideo();
+          debug(`Loaded ${marks.length} marks from shared URL`);
+        }, 1000);
+      }
+    }
+  }
+
+  // Initialize on page load
+  window.addEventListener('load', () => {
+    loadFromUrl();
+    
+    // Load YouTube API
+    if (!window.YT) {
+      loadYouTubeAPI();
+    }
+    
+    // Initialize speed button highlighting
+    updateSpeedButtons();
+  });
+
+  // Debug function
+  function debug(message) {
+    console.log(message);
+  }
+
+  function handleUrlKeyPress(event) {
+    if (event.key === 'Enter') {
+      loadYouTubeVideo();
+    }
+  }
+  
+  function saveMarks() {
+    if (currentVideoId) {
+      try {
+        localStorage.setItem(`marks_${currentVideoId}`, JSON.stringify(marks));
+        debug(`Saved ${marks.length} marks for video: ${currentVideoId}`);
+      } catch (error) {
+        debug(`Error saving marks: ${error.message}`);
+        alert('Failed to save marks. Your browser storage might be full.');
+      }
+    } else {
+      debug('No currentVideoId set, cannot save marks');
+    }
+  }
+  
+  function loadMarks(preserveCurrentMarks = false) {
+    if (currentVideoId) {
+      const savedMarks = localStorage.getItem(`marks_${currentVideoId}`);
+      if (savedMarks) {
+        try {
+          const loadedMarks = JSON.parse(savedMarks);
+          marks = loadedMarks;
+          debug(`Loaded ${marks.length} marks for video: ${currentVideoId}`);
+          updateMarkList();
+        } catch (error) {
+          debug(`Error loading marks: ${error.message}`);
+          if (!preserveCurrentMarks) {
+            marks = [];
+            updateMarkList();
+          }
+        }
+      } else {
+        debug(`No saved marks found for video: ${currentVideoId}`);
+        if (!preserveCurrentMarks) {
+          marks = [];
+          updateMarkList();
+        }
+      }
+    } else {
+      debug('No currentVideoId set, cannot load marks');
+    }
+  }
+
+  function resetState() {
+    // Don't clear marks here - let loadMarks() handle it
+    currentIndex = -1;
+    currentSpeed = 1.0;
+    isLooping = false;
+    stopLoop();
+    updateSpeedButtons();
+    updateLoopButton();
+    updateMarkList();
+  }
+
+  function clearMarks() {
+    // Separate function for when we actually want to clear marks
+    marks = [];
+    currentIndex = -1;
+    updateMarkList();
+  }
+
+  // Video control wrapper functions
+  function getCurrentTime() {
+    return youtubePlayer ? youtubePlayer.getCurrentTime() : 0;
+  }
+  
+  function setCurrentTime(time) {
+    if (youtubePlayer) {
+      youtubePlayer.seekTo(time, true);
+    }
+  }
+  
+  function getDuration() {
+    return youtubePlayer ? youtubePlayer.getDuration() : 0;
+  }
+  
+  function isPaused() {
+    if (youtubePlayer) {
+      const state = youtubePlayer.getPlayerState();
+      return state !== YT.PlayerState.PLAYING;
+    }
+    return true;
+  }
+  
+  function pauseVideo() {
+    if (youtubePlayer) {
+      youtubePlayer.pauseVideo();
+    }
+  }
+  
+  function playVideo() {
+    if (youtubePlayer) {
+      youtubePlayer.playVideo();
+    }
+  }
+  
+  function setPlaybackRate(rate) {
+    if (youtubePlayer) {
+      youtubePlayer.setPlaybackRate(rate);
+    }
+  }
+
+  function updateMarkList() {
+    const markList = document.getElementById('markList');
+    
+    if (marks.length === 0) {
+      markList.innerHTML = '(none)';
+      return;
+    }
+    
+    // Create a copy of the marks array and reverse it for display purposes
+    const markElements = [...marks].reverse().map((mark, i) => {
+      // We need to find the original index of this mark in the marks array
+      const originalIndex = marks.length - 1 - i;
+      const isCurrentMark = originalIndex === currentIndex;
+      const pointer = isCurrentMark ? '👉 ' : '';
+      const timestamp = mark.time.toFixed(1);
+      
+      return `<span class="mark-item ${isCurrentMark ? 'current-mark' : ''}">
+                <span class="mark-time" onclick="jumpToMark(${originalIndex})">${pointer}${mark.name} (${timestamp}s)</span>
+                <span class="mark-controls">
+                  <button class="tiny-button" onclick="adjustMarkTime(${originalIndex}, -0.5)" title="Subtract 0.5 seconds">-0.5s</button>
+                  <button class="tiny-button" onclick="adjustMarkTime(${originalIndex}, 0.5)" title="Add 0.5 seconds">+0.5s</button>
+                  <button class="tiny-button" onclick="renameMark(${originalIndex})" title="Rename mark">✏️</button>
+                  <span class="delete-mark" onclick="deleteMark(${originalIndex})">❌</span>
+                </span>
+              </span>`;
+    }).join(' ');
+    
+    markList.innerHTML = markElements;
+  }
+  
+  function prevMark() {
+    if (marks.length === 0) return;
+
+    if (currentIndex === -1) {
+      // First use, find closest mark before current time
+      let found = false;
+      for (let i = marks.length - 1; i >= 0; i--) {
+        if (marks[i].time < getCurrentTime()) {
+          currentIndex = i;
+          found = true;
+          break;
+        }
+      }
+      
+      // If no mark is earlier than current time, don't jump
+      if (!found) return;
+    } else if (currentIndex > 0) {
+      currentIndex--;
+    }
+
+    if (currentIndex >= 0) {
+      const wasPlaying = !isPaused();
+      pauseVideo();
+      setCurrentTime(marks[currentIndex].time);
+      
+      if (wasPlaying) {
+        setTimeout(() => playVideo(), 50); // allow seek to apply
+      }
+      updateMarkList();
+      resetLoop(); // Reset loop for new mark
+    }
+  }
+
+  function nextMark() {
+    if (marks.length === 0) return;
+
+    if (currentIndex === -1) {
+      for (let i = 0; i < marks.length; i++) {
+        if (marks[i].time > getCurrentTime()) {
+          currentIndex = i;
+          break;
+        }
+      }
+    } else if (currentIndex < marks.length - 1) {
+      currentIndex++;
+    }
+
+    if (currentIndex >= 0 && currentIndex < marks.length) {
+      const wasPlaying = !isPaused();
+      pauseVideo();
+      setCurrentTime(marks[currentIndex].time);
+      
+      if (wasPlaying) {
+        setTimeout(() => playVideo(), 50);
+      }
+      updateMarkList();
+      resetLoop(); // Reset loop for new mark
+    }
+  }
+
+  function toggleLoop() {
+    isLooping = !isLooping;
+    
+    if (isLooping) {
+      startLoop();
+    } else {
+      stopLoop();
+    }
+    
+    updateLoopButton();
+  }
+  
+  function startLoop() {
+    if (marks.length === 0) {
+      alert('No marks available. Please create some marks first.');
+      isLooping = false;
+      updateLoopButton();
+      return;
+    }
+    
+    // If no mark is selected, find the closest previous mark or use beginning
+    if (currentIndex === -1) {
+      const currentTime = getCurrentTime();
+      let foundIndex = -1;
+      
+      // Find the closest mark before current time
+      for (let i = marks.length - 1; i >= 0; i--) {
+        if (marks[i].time <= currentTime) {
+          foundIndex = i;
+          break;
+        }
+      }
+      
+      if (foundIndex >= 0) {
+        // Found a mark before current time
+        currentIndex = foundIndex;
+        debug(`Auto-selected mark ${currentIndex + 1} at ${marks[currentIndex].time.toFixed(1)}s`);
+      } else {
+        // No mark before current time, use the first mark
+        currentIndex = 0;
+        debug(`No previous mark found, using first mark at ${marks[0].time.toFixed(1)}s`);
+      }
+      
+      updateMarkList();
+    }
+    
+    // Set up loop monitoring
+    loopInterval = setInterval(checkLoop, 100);
+    debug('Loop started between marks');
+  }
+  
+  function stopLoop() {
+    if (loopInterval) {
+      clearInterval(loopInterval);
+      loopInterval = null;
+    }
+    debug('Loop stopped');
+  }
+  
+  function checkLoop() {
+    if (!isLooping || currentIndex === -1) return;
+    
+    const currentTime = getCurrentTime();
+    const startTime = marks[currentIndex].time;
+    let endTime;
+    
+    // Determine end time: next mark or end of video
+    if (currentIndex < marks.length - 1) {
+      endTime = marks[currentIndex + 1].time;
+    } else {
+      endTime = getDuration();
+    }
+    
+    // If we're before the start time, jump to start
+    if (currentTime < startTime) {
+      setCurrentTime(startTime);
+      debug(`Jumped forward to start: ${startTime.toFixed(1)}s`);
+    }
+    // If we've reached or passed the end time, loop back to start
+    else if (currentTime >= endTime) {
+      setCurrentTime(startTime);
+      debug(`Looped back to ${startTime.toFixed(1)}s`);
+    }
+  }
+
+  function updateLoopButton() {
+    loopButton.textContent = isLooping ? '🔁 Loop On' : '🔁 Loop Off';
+    loopButton.style.backgroundColor = isLooping ? '#4caf50' : '#fff';
+    loopButton.style.color = isLooping ? '#fff' : '#000';
+  }
+  
+  // Reset loop when changing marks
+  function resetLoop() {
+    if (isLooping) {
+      stopLoop();
+      startLoop();
+    }
+  }
+
+  function jumpToMark(index) {
+    if (index >= 0 && index < marks.length) {
+      const wasPlaying = !isPaused();
+      pauseVideo();
+      
+      currentIndex = index;
+      setCurrentTime(marks[index].time);
+      
+      // Resume playback
+      setTimeout(() => {
+        if (wasPlaying) playVideo();
+        updateMarkList();
+        resetLoop(); // Reset loop for new mark
+      }, 50);
+    }
+  }
+
+  // YouTube API functions
+  function loadYouTubeAPI() {
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    const firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+  }
+  
+  // YouTube API ready callback
+  window.onYouTubeIframeAPIReady = function() {
+    youtubeReady = true;
+    debug('YouTube API ready');
+  }
+  
+  function extractYouTubeVideoId(url) {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  }
+  
+  function loadYouTubeVideo() {
+    const url = document.getElementById('youtubeUrl').value;
+    const videoId = extractYouTubeVideoId(url);
+    
+    if (!videoId) {
+      alert('Please enter a valid YouTube URL');
+      return;
+    }
+    
+    if (!youtubeReady) {
+      alert('YouTube API is still loading. Please try again in a moment.');
+      return;
+    }
+    
+    const newVideoId = `youtube_${videoId}`;
+    const isNewVideo = !currentVideoId || currentVideoId !== newVideoId;
+    
+    // Set current video ID BEFORE creating player
+    currentVideoId = newVideoId;
+    debug(`Loading YouTube video: ${videoId} (isNewVideo: ${isNewVideo})`);
+    
+    // Destroy existing player if any
+    if (youtubePlayer) {
+      youtubePlayer.destroy();
+    }
+    
+    // Create new YouTube player
+    youtubePlayer = new YT.Player('youtubePlayer', {
+      height: '100%',
+      width: '100%',
+      videoId: videoId,
+      playerVars: {
+        'playsinline': 1,
+        'controls': 1,
+        'rel': 0,
+        'autoplay': 1
+      },
+      events: {
+        'onReady': function(event) { onYouTubePlayerReady(event, isNewVideo); },
+        'onStateChange': onYouTubePlayerStateChange
+      }
+    });
+  }
+  
+  function onYouTubePlayerReady(event, isNewVideo) {
+    debug(`YouTube player ready (isNewVideo: ${isNewVideo})`);
+    
+    // Reset state but don't clear marks
+    resetState();
+    
+    // Only load marks if this is a new video
+    if (isNewVideo) {
+      debug('Loading marks for new video');
+      loadMarks();
+    } else {
+      debug('Same video, preserving current marks');
+      updateMarkList(); // Just refresh the display
+    }
+    
+    // Start playing the video automatically
+    setTimeout(() => {
+      if (youtubePlayer) {
+        youtubePlayer.playVideo();
+        debug('Auto-started video playback');
+      }
+    }, 500);
+  }
+  
+  function onYouTubePlayerStateChange(event) {
+    // Handle YouTube player state changes if needed
+  }
+
+  // Restore missing mark functions
+  function markTimestamp() {
+    const time = getCurrentTime() - 0.3;
+    const mark = {
+      time: time,
+      name: `Mark ${marks.length + 1}`  // Default name
+    };
+    
+    marks.push(mark);
+    // Sort by time
+    marks.sort((a, b) => a.time - b.time);
+    currentIndex = marks.findIndex(m => m === mark);
+    updateMarkList();
+    
+    // Save marks locally
+    saveMarks();
+  }
+  
+  function adjustMarkTime(index, adjustment) {
+    if (index >= 0 && index < marks.length) {
+      marks[index].time += adjustment;
+      // Resort in case this changes order
+      marks.sort((a, b) => a.time - b.time);
+      // Find the new index of the mark that was adjusted
+      const adjustedMark = marks[index];
+      currentIndex = marks.findIndex(m => m === adjustedMark);
+      updateMarkList();
+      
+      // Save changes locally
+      saveMarks();
+    }
+  }
+  
+  function renameMark(index) {
+    if (index >= 0 && index < marks.length) {
+      const newName = prompt('Enter a new name for this mark:', marks[index].name);
+      if (newName !== null && newName.trim() !== '') {
+        marks[index].name = newName.trim();
+        updateMarkList();
+        
+        // Save changes locally
+        saveMarks();
+      }
+    }
+  }
+  
+  function deleteMark(index) {
+    if (index >= 0 && index < marks.length) {
+      marks.splice(index, 1);
+      
+      // Adjust currentIndex if needed
+      if (currentIndex === index) {
+        currentIndex = -1; // Reset current marker if it was deleted
+      } else if (currentIndex > index) {
+        currentIndex--; // Adjust for the removed marker
+      }
+      
+      updateMarkList();
+      
+      // Save changes locally
+      saveMarks();
+    }
+  }
+
+  function setSpeed(rate) {
+    currentSpeed = rate;
+    setPlaybackRate(rate);
+    updateSpeedButtons();
+  }
+
+  function updateSpeedButtons() {
+    // Update all speed buttons to show which one is active
+    const speedButtons = document.querySelectorAll('.controls button');
+    speedButtons.forEach(button => {
+      const buttonText = button.textContent;
+      if (buttonText.includes('x') && !buttonText.includes('Loop')) {
+        const speed = parseFloat(buttonText.replace('x', ''));
+        if (speed === currentSpeed) {
+          button.style.backgroundColor = '#2196f3';
+          button.style.color = 'white';
+        } else {
+          button.style.backgroundColor = '#fff';
+          button.style.color = '#000';
+        }
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
