@@ -203,10 +203,7 @@
 
 <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
   <input type="text" id="youtubeUrl" placeholder="Enter YouTube URL and press Enter (e.g., https://www.youtube.com/watch?v=VIDEO_ID)" style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;" onkeypress="handleUrlKeyPress(event)">
-  <button id="shareUrlBtn" onclick="generateShareUrl()" style="padding: 14px 20px; background: #e3f2fd; border: 1px solid #2196f3; border-radius: 8px; font-size: 15px; font-weight: 500; white-space: nowrap; min-width: 200px;">🔗 Share URL with all marks</button>
 </div>
-
-<div id="shareResult" style="display: none; margin-bottom: 15px;"></div>
 
 <div id="videoContainer">
   <div id="youtubePlayer"></div>
@@ -266,29 +263,31 @@
   let loopInterval = null;
   let youtubePlayer = null;
   let youtubeReady = false;
+  let isLoadingFromUrl = false; // Flag to prevent URL updates during initial load
 
   // URL sharing functions
-  function generateShareUrl() {
-    const resultDiv = document.getElementById('shareResult');
+  function updateBrowserUrl() {
+    // Don't update URL if we're currently loading from a shared URL
+    if (isLoadingFromUrl) return;
     
-    // Toggle functionality - if already visible, hide it
-    if (resultDiv.style.display === 'block') {
-      resultDiv.style.display = 'none';
-      return;
-    }
-    
-    if (marks.length === 0) {
-      alert('No marks to share');
+    // Only update if we have a video loaded and marks
+    if (!currentVideoId || marks.length === 0) {
+      // Clear URL parameters if no marks
+      if (currentVideoId && marks.length === 0) {
+        const youtubeUrl = document.getElementById('youtubeUrl').value;
+        const videoId = extractYouTubeVideoId(youtubeUrl);
+        if (videoId) {
+          const cleanUrl = `${window.location.origin}${window.location.pathname}?v=${videoId}`;
+          window.history.replaceState({}, '', cleanUrl);
+        }
+      }
       return;
     }
 
     const youtubeUrl = document.getElementById('youtubeUrl').value;
     const videoId = extractYouTubeVideoId(youtubeUrl);
     
-    if (!videoId) {
-      alert('Invalid YouTube URL');
-      return;
-    }
+    if (!videoId) return;
     
     // Create compressed data
     const compressedData = compressMarks(marks);
@@ -296,27 +295,16 @@
     // Generate short URL
     const shortUrl = `${window.location.origin}${window.location.pathname}?v=${videoId}&m=${compressedData}`;
     
-    resultDiv.innerHTML = `
-      <div style="padding: 15px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px;">
-        <div>
-          <strong>🔗 Share URL:</strong><br>
-          <input type="text" value="${shortUrl}" style="width: 100%; margin: 8px 0; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 12px;" readonly onclick="this.select()">
-          <button onclick="copyToClipboard('${shortUrl}')" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">📋 Copy URL</button>
-        </div>
-        <div style="margin-top: 10px; font-size: 12px; color: #666;">
-          💡 Contains ${marks.length} marks in ${shortUrl.length} characters
-        </div>
-      </div>
-    `;
-    resultDiv.style.display = 'block';
+    // Update browser URL without reloading the page
+    window.history.replaceState({}, '', shortUrl);
     
-    debug(`Generated share URL with ${marks.length} marks: ${shortUrl.length} chars`);
+    debug(`Updated browser URL with ${marks.length} marks and current index: ${currentIndex}`);
   }
 
   // Compress marks data for shorter URLs
   function compressMarks(marks) {
-    // Convert marks to compact format: [time1,name1,time2,name2,...]
-    const compact = [];
+    // Convert marks to compact format: [currentIndex, time1,name1,time2,name2,...]
+    const compact = [currentIndex]; // Start with current index
     marks.forEach(mark => {
       compact.push(Math.round(mark.time * 10) / 10); // Round to 1 decimal
       compact.push(mark.name);
@@ -343,35 +331,29 @@
       const jsonStr = decodeURIComponent(escape(atob(base64)));
       const compact = JSON.parse(jsonStr);
       
-      // Convert back to marks format
+      // First element is the currentIndex
+      const restoredCurrentIndex = compact[0];
+      
+      // Convert back to marks format (skip first element which is currentIndex)
       const marks = [];
-      for (let i = 0; i < compact.length; i += 2) {
+      for (let i = 1; i < compact.length; i += 2) {
         marks.push({
           time: compact[i],
           name: compact[i + 1]
         });
       }
       
-      return marks;
+      return {
+        marks: marks,
+        currentIndex: restoredCurrentIndex
+      };
     } catch (error) {
       debug('Error decompressing marks: ' + error.message);
-      return [];
+      return {
+        marks: [],
+        currentIndex: -1
+      };
     }
-  }
-
-  function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(() => {
-      alert('URL copied to clipboard!');
-    }).catch(() => {
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      alert('URL copied to clipboard!');
-    });
   }
 
   // URL loading for shared links
@@ -383,22 +365,32 @@
     const compressedMarks = urlParams.get('m');
     
     if (videoId && compressedMarks) {
+      isLoadingFromUrl = true; // Prevent URL updates during loading
+      
       // Short URL format
       const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
       const decompressedMarks = decompressMarks(compressedMarks);
       
-      if (decompressedMarks.length > 0) {
+      if (decompressedMarks.marks.length > 0) {
         document.getElementById('youtubeUrl').value = youtubeUrl;
         
         // Set marks and video ID before loading
         currentVideoId = `youtube_${videoId}`;
-        marks = decompressedMarks;
+        marks = decompressedMarks.marks;
+        currentIndex = decompressedMarks.currentIndex;
         updateMarkList();
         
         setTimeout(() => {
           loadYouTubeVideo();
-          debug(`Loaded ${marks.length} marks from shared URL`);
+          debug(`Loaded ${marks.length} marks from shared URL with current mark: ${currentIndex}`);
+          
+          // Allow URL updates after loading is complete
+          setTimeout(() => {
+            isLoadingFromUrl = false;
+          }, 3000); // Increased timeout to ensure video is fully loaded
         }, 1000);
+      } else {
+        isLoadingFromUrl = false;
       }
     }
   }
@@ -493,6 +485,9 @@
       try {
         localStorage.setItem(`marks_${currentVideoId}`, JSON.stringify(marks));
         debug(`Saved ${marks.length} marks for video: ${currentVideoId}`);
+        
+        // Update browser URL with current state
+        updateBrowserUrl();
       } catch (error) {
         debug(`Error saving marks: ${error.message}`);
         alert('Failed to save marks. Your browser storage might be full.');
@@ -649,6 +644,7 @@
       }
       updateMarkList();
       resetLoop(); // Reset loop for new mark
+      updateBrowserUrl(); // Update URL when current mark changes
     }
   }
 
@@ -676,6 +672,7 @@
       }
       updateMarkList();
       resetLoop(); // Reset loop for new mark
+      updateBrowserUrl(); // Update URL when current mark changes
     }
   }
 
@@ -791,6 +788,7 @@
         if (wasPlaying) playVideo();
         updateMarkList();
         resetLoop(); // Reset loop for new mark
+        updateBrowserUrl(); // Update URL when jumping to mark
       }, 50);
     }
   }
@@ -834,11 +832,18 @@
     
     // Set current video ID BEFORE creating player
     currentVideoId = newVideoId;
-    debug(`Loading YouTube video: ${videoId} (isNewVideo: ${isNewVideo})`);
+    debug(`Loading YouTube video: ${videoId} (isNewVideo: ${isNewVideo}, isLoadingFromUrl: ${isLoadingFromUrl})`);
     
     // Destroy existing player if any
     if (youtubePlayer) {
       youtubePlayer.destroy();
+    }
+    
+    // Determine start time for shared URLs
+    let startTime = 0;
+    if (isLoadingFromUrl && currentIndex >= 0 && currentIndex < marks.length) {
+      startTime = Math.floor(marks[currentIndex].time);
+      debug(`Setting YouTube start time to ${startTime}s for shared mark`);
     }
     
     // Create new YouTube player
@@ -850,7 +855,8 @@
         'playsinline': 1,
         'controls': 1,
         'rel': 0,
-        'autoplay': 1
+        'autoplay': 1,
+        'start': startTime // Start at the shared mark position
       },
       events: {
         'onReady': function(event) { onYouTubePlayerReady(event, isNewVideo); },
@@ -865,10 +871,31 @@
     // Reset state but don't clear marks
     resetState();
     
-    // Only load marks if this is a new video
-    if (isNewVideo) {
-      debug('Loading marks for new video');
+    // Only load marks from localStorage if this is a new video AND we're not loading from a shared URL
+    if (isNewVideo && !isLoadingFromUrl) {
+      debug('Loading marks for new video from localStorage');
       loadMarks();
+    } else if (isLoadingFromUrl) {
+      debug('Preserving shared URL marks and jumping to current mark');
+      updateMarkList(); // Just refresh the display
+      
+      // Jump to current mark if one is selected (for precise positioning)
+      if (currentIndex >= 0 && currentIndex < marks.length) {
+        setTimeout(() => {
+          // Do a precise seek to include decimal seconds
+          const exactTime = marks[currentIndex].time;
+          setCurrentTime(exactTime);
+          debug(`Fine-tuned position to exact mark time: ${exactTime.toFixed(1)}s`);
+          
+          // Ensure video is playing
+          setTimeout(() => {
+            if (youtubePlayer) {
+              youtubePlayer.playVideo();
+              debug('Ensured video is playing after positioning');
+            }
+          }, 300);
+        }, 1500); // Wait longer for YouTube start parameter to take effect
+      }
     } else {
       debug('Same video, preserving current marks');
       updateMarkList(); // Just refresh the display
@@ -884,7 +911,21 @@
   }
   
   function onYouTubePlayerStateChange(event) {
-    // Handle YouTube player state changes if needed
+    // Handle YouTube player state changes
+    if (isLoadingFromUrl && event.data === YT.PlayerState.PLAYING) {
+      // When video starts playing during shared URL load, ensure we're at the right position
+      if (currentIndex >= 0 && currentIndex < marks.length) {
+        const currentTime = getCurrentTime();
+        const targetTime = marks[currentIndex].time;
+        const timeDiff = Math.abs(currentTime - targetTime);
+        
+        // If we're more than 2 seconds off from target, correct the position
+        if (timeDiff > 2) {
+          debug(`Correcting position: current=${currentTime.toFixed(1)}s, target=${targetTime.toFixed(1)}s`);
+          setCurrentTime(targetTime);
+        }
+      }
+    }
   }
 
   // Restore missing mark functions

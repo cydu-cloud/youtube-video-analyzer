@@ -52,10 +52,11 @@ Transform your game improvement process with detailed video analysis and remote 
 
 ### 4. Share with Coach
 ```
-• Generate a share URL with all your marks and notes
+• Copy a share URL with all your marks and notes
 • Coach can review remotely and add their observations
 • Discuss improvements in your next session
 ```
+
 
 ## 🎮 Controls Guide
 
@@ -92,7 +93,7 @@ Power users can control everything with keyboard shortcuts:
 - **❌ Delete**: Remove unwanted marks
 
 ### Sharing
-- **Share URL**: Generate compressed link with all marks
+- **Share URL**: Copy URL from address bar to share your marks (includes current mark)
 - **Auto-save**: Marks saved locally per video
 - **Cross-device**: Share links work on any device
 
